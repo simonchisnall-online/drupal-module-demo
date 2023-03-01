@@ -1,0 +1,5 @@
+services:
+  kat_autocloud.api:
+    class: Drupal\kat_autocloud\ApiService
+  kat_autocloud.stock:
+    class: Drupal\kat_autocloud\KatStock

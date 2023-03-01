@@ -1,0 +1,18 @@
+kat_autocloud.config:
+  path: '/admin/config/autocloud'
+  defaults:
+    _form: '\Drupal\kat_autocloud\Controller\AdminFormController'
+    _title: 'Autocloud configuration actions'
+  requirements:
+    _role: 'administrator+editor'
+
+
+kat_autocloud.remote_actions_controller:
+  path: '/kat_autocloud/remote/import/{key}'
+  defaults:
+    _controller: '\Drupal\kat_autocloud\Controller\RemoteActionsController::remoteRunImport'
+    _title: 'remoteRunImport'
+  requirements:
+    _permission: 'access content'
+  options:
+    no_cache: TRUE

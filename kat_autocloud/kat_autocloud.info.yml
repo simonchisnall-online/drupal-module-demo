@@ -1,0 +1,6 @@
+name: KAT autocloud
+type: module
+description: Provides integration with the autocloud API
+core: 8.x
+core_version_requirement: "^8 || ^9"
+package: kat

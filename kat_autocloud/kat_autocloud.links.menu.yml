@@ -1,0 +1,4 @@
+kat_autocloud.menu_config:
+  title: 'Autocloud Config'
+  parent: system.admin_config_services
+  route_name: 'kat_autocloud.config'

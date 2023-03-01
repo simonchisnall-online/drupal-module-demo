@@ -1,0 +1,103 @@
+<script src="https://unpkg.com/vue"></script>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+<section class="banner py_compact banner-image text-light text-" style="background-image:url(/themes/ws_bootstrap/images/cover6.jpg);">
+	<div class="container">
+		<div class="row">
+			<div class="col-sm-12">
+				<h1 class="ff-title large title-underline title-underline-100 mb0 mt2">
+					Trucks for sale
+				</h1>
+			</div>
+		</div>
+	</div>
+</section>
+
+<section class="py_compact" id="app">
+	<div class=" container-large">
+		<div class="row">
+			<div class="col-sm-12">
+				<label for="sort-order">Order By</label>
+				<select id="sort-order" v-model="sort_order" v-on:change="orderBy">
+					<option value="DateAdded">Date Added</option>
+					<option value="Make">Make</option>
+					<option value="Year">Year</option>
+					<option value="Model">Model</option>
+					<option value="Price">Price</option>
+				</select>
+			</div>
+		</div>
+		<div class="row sm-flex items-stretch">
+			<div class="col-sm-12">
+				<div class="truck-list">
+					<ul>
+						<li v-for="item in list">
+							<img v-if="item.StockAssets" :src="item.StockAssets[0]" width="300"/>
+							<h4>${ item.Title }</h4>
+							<strong>$ ${ item.PriceRetail }</strong>
+						</li>
+					</ul>
+				</div>
+			</div>
+		</div>
+
+
+	</div>
+</section>
+
+<style>
+	.truck-list ul {
+		display: flex;
+		list-style-type: none;
+		justify-content: space-around;
+		flex-wrap: wrap;
+	}
+
+	.truck-list ul li {
+		width: 300px;
+		border: 1px solid grey;
+		padding: 10px;
+		margin: 10px;
+	}
+</style>
+
+
+<script>
+	// Testing - Not currently used
+new Vue({
+el: '#app',
+data: {
+message: 'Hello Vue.js!',
+apiResponse: [],
+list: [],
+sort_order: 'DateAdded',
+url: "http://128.199.237.176/stock/list?AccountKey=c0d486eb-ae21-4634-a81b-0f928714efcc&DealerKey=0619256a-f661-4bdc-bfb0-991518bda6dc"
+},
+delimiters: [
+'${', '}'
+],
+mounted() {
+this.updateListFromApi('');
+},
+methods: {
+orderBy: function (event) {
+console.log(this.sort_order);
+this.updateListFromApi('&Params={ "OrderBy": "' + this.sort_order + '" }');
+},
+updateListFromApi: function (params) {
+axios({
+method: "GET",
+"url": this.url + params,
+responseType: 'json'
+}).then(result => {
+this.apiResponse = result.data;
+this.list = result.data.list;
+}, error => {
+console.error(error);
+});
+}
+
+
+}
+});
+</script>

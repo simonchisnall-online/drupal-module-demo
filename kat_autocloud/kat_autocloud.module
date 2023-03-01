@@ -1,0 +1,138 @@
+<?php
+
+/**
+ * @file
+ * Provides expanded entity APIs.
+ */
+
+use Drupal\Core\Queue\SuspendQueueException;
+
+/**
+ * Implements hook_theme().
+ */
+function kat_autocloud_theme($existing, $type, $theme, $path) {
+  return [
+    'truck_list' => [
+      'variables' => ['test_var' => NULL],
+    ],
+  ];
+}
+
+/**
+ * Implements hook_cron().
+ */
+function kat_autocloud_cron() {
+  // No longer used as Run from url call.
+  // processAutocloudStockQueue();
+}
+
+/**
+ * Create Stock from API using queue worker.
+ *
+ * Fired from URL.
+ */
+function process_autocloud_stock_queue() {
+  \Drupal::logger('kat_autocloud')->notice('Process autocloud stock queue started - ' . date(DATE_RSS) . " - " . time());
+
+  // Get current stock from API.
+  /** @var \Drupal\kat_autocloud\ApiService $service */
+  $api_service = \Drupal::service('kat_autocloud.api');
+  $stock_list = get_object_vars($api_service->getStockList());
+
+  // Process API stock list and add to queue.
+  /** @var QueueFactory $queue_factory */
+  $queue_factory = \Drupal::service('queue');
+  /** @var QueueInterface $queue */
+  $queue = $queue_factory->get('kat_autocloud_queue');
+  foreach ($stock_list as $key => $stock_api) {
+    $stock_api->Key = $key;
+    $queue->createItem($stock_api);
+  }
+
+  // Run the queue.
+  $queueManager = \Drupal::service('plugin.manager.queue_worker');
+  /** @var QueueWorkerInterface $queue_worker */
+  $queue_worker = $queueManager->createInstance('kat_autocloud_queue');
+  while ($item = $queue->claimItem()) {
+    try {
+      $queue_worker->processItem($item->data);
+      $queue->deleteItem($item);
+    }
+    catch (SuspendQueueException $e) {
+      $queue->releaseItem($item);
+      break;
+    }
+    catch (\Exception $e) {
+      watchdog_exception('npq', $e);
+    }
+  }
+
+  // Remove old stock.
+  /** @var \Drupal\kat_autocloud\KatStock $service */
+  $stock_service = \Drupal::service('kat_autocloud.stock');
+  $stock_service->removeOldStock();
+
+  \Drupal::logger('kat_autocloud')->notice('Process autocloud stock queue finished -' . date(DATE_RSS) . " - " . time());
+}
+
+/**
+ * Create Stock from API using batch.
+ *
+ * Fired from admin config page.
+ */
+function process_autocloud_stock_batch() {
+  \Drupal::logger('kat_autocloud')->notice('Process autocloud stock batch started');
+
+  // Get current stock from API.
+  /** @var \Drupal\kat_autocloud\ApiService $service */
+  $api_service = \Drupal::service('kat_autocloud.api');
+  $stock_list = get_object_vars($api_service->getStockList());
+
+  // Process API stock list and add to batch.
+  $operations = [];
+  foreach ($stock_list as $key => $stock_api) {
+    $stock_api->Key = $key;
+    $operations[] = [
+      '\Drupal\kat_autocloud\ProcessStock::CreateNodeStockFromApiStock',
+      [$stock_api],
+    ];
+  }
+
+  // Run batch.
+  $batch = [
+    'title' => t('Updating Stock...'),
+    'operations' => $operations,
+    'finished' => '\Drupal\kat_autocloud\ProcessStock::updateStockFinishedCallback',
+  ];
+  batch_set($batch);
+}
+
+/**
+ * Helper function to get taxonomy names.
+ *
+ * @param $vid
+ *
+ * @return array
+ */
+function kat_autocloud_get_stock_taxonomy_names($vid) {
+  $terms = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->loadTree($vid);
+  $term_names = [];
+  foreach ($terms as $term) {
+    $term_names[] = $term->name;
+  }
+  return $term_names;
+}
+
+/**
+ * Helper function to delete all node of type.
+ *
+ * @param $type
+ *
+ * @return int
+ */
+function deleteAllNodesofType($type) {
+  $storage_handler = \Drupal::entityTypeManager()->getStorage("node");
+  $entities = $storage_handler->loadByProperties(['type' => $type]);
+  $storage_handler->delete($entities);
+  return count($entities);
+}
